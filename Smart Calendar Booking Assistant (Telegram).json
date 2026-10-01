@@ -1,0 +1,332 @@
+{
+  "name": "Smart Calendar Booking Assistant (Telegram)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "ce062b83-c3e0-47fd-b83f-5f11df623a47",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        112
+      ],
+      "webhookId": "082dae37-25d6-4774-8cce-31be7a0bf76a",
+      "credentials": {
+        "telegramApi": {
+          "id": "aNgt6VOl3pUplGly",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "=You are a smart calendar booking assistant chatting over Telegram. The current date and time is {{ $now }} (timezone Asia/Calcutta).\n\nYou can:\n- check_availability: read events in a time window to find free slots\n- create_event: book a new meeting after the user confirms\n- update_event: reschedule an existing meeting\n- delete_event: cancel a meeting\n\nBehavior:\n- When the user asks to book or find time, first use check_availability for the relevant day/range, then suggest open slots (assume working hours 09:00-17:00, default duration 30 min, skip 13:00-14:00 lunch unless told otherwise).\n- Always confirm the exact date, time, duration and title with the user before calling create_event, update_event or delete_event.\n- For cancellations/deletions specifically: NEVER call delete_event on the same turn you identify the event. First find the matching event with check_availability, show its exact title, date and time, and ask the user to reply \"Yes, cancel\" (or similar explicit confirmation). Only call delete_event AFTER the user explicitly confirms in a later message. If no clear match is found, list candidates and ask which one — never delete on a guess.\n- Reply concisely in a chat-friendly style. Use the local timezone Asia/Calcutta for all times you show."
+        }
+      },
+      "id": "4869b6d1-9357-4fb7-a237-88faa8a52419",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "8c08cadd-ebba-4fd4-9828-d9dc1e99e6b1",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        336
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "id": "e946562c-e88f-4795-9c7f-0330388b0ff0",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        352,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "manjunagasri516@gmail.com",
+          "cachedResultName": "manjunagasri516@gmail.com"
+        },
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('timeMin', 'Start of the time window to check for events, ISO 8601 date-time') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('timeMax', 'End of the time window to check for events, ISO 8601 date-time') }}",
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "id": "edb67385-a5ba-47f0-bd90-b98c73c84fc6",
+      "name": "check_availability",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        336
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Qu9QwbRPpoWgUQcH",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "manjunagasri516@gmail.com",
+          "cachedResultName": "manjunagasri516@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'Event start time, ISO 8601 date-time') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'Event end time, ISO 8601 date-time') }}",
+        "additionalFields": {
+          "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('description', 'Description or agenda of the event') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('summary', 'Title of the event') }}"
+        }
+      },
+      "id": "0369eda2-9a26-4acf-bb05-f5bea39c1a7b",
+      "name": "create_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        608,
+        336
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Qu9QwbRPpoWgUQcH",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "manjunagasri516@gmail.com",
+          "cachedResultName": "manjunagasri516@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('eventId', 'ID of the calendar event to update') }}",
+        "updateFields": {
+          "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('end', 'New end time, ISO 8601 date-time') }}",
+          "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start', 'New start time, ISO 8601 date-time') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('summary', 'New title of the event') }}"
+        }
+      },
+      "id": "e4b52caf-cfca-4c2c-8838-6fd33a11c0bf",
+      "name": "update_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        736,
+        336
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Qu9QwbRPpoWgUQcH",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "manjunagasri516@gmail.com",
+          "cachedResultName": "manjunagasri516@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('eventId', 'ID of the calendar event to delete') }}",
+        "options": {}
+      },
+      "id": "49f1b736-e239-4bb8-a386-60a8875fd8cd",
+      "name": "delete_event",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        336
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Qu9QwbRPpoWgUQcH",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e5bbe2dd-1c8d-439c-acb1-9352bce9b502",
+      "name": "Send a text message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        112
+      ],
+      "webhookId": "64788855-f819-49ce-80b3-0c5d466a04a4",
+      "credentials": {
+        "telegramApi": {
+          "id": "aNgt6VOl3pUplGly",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete_event": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2bad4e6f-01bc-4241-bdfe-a292152babdd",
+  "meta": {
+    "instanceId": "ef7dde1f18e4b609672142324d70524049e8cf41b4fde1ce3424e54a59cd32d2"
+  },
+  "nodeGroups": [],
+  "id": "fFJHTWIcefPb01N3",
+  "tags": []
+}
